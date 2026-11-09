@@ -10,7 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * Security configuration for the application.
  * 
  * DEVELOPMENT CONFIGURATION:
- * This configuration permits unauthenticated access to customer endpoints
+ * This configuration permits unauthenticated access to customer and vehicle endpoints
  * for development and testing purposes. This is NOT production-ready.
  * 
  * FUTURE MILESTONE:
@@ -29,6 +29,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable()) // Disable CSRF for REST API
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/customers/**").permitAll() // Permit customer endpoints for development
+                .requestMatchers("/api/v1/vehicles/**").permitAll() // Permit vehicle endpoints for development
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
 
