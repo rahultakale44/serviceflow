@@ -6,6 +6,7 @@ import com.serviceflow.backend.entity.Customer;
 import com.serviceflow.backend.exception.DuplicateResourceException;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.CustomerRepository;
+import com.serviceflow.backend.repository.VehicleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +36,9 @@ class CustomerServiceTest {
 
     @Mock
     private CustomerRepository customerRepository;
+
+    @Mock
+    private VehicleRepository vehicleRepository;
 
     @InjectMocks
     private CustomerService customerService;
@@ -237,12 +241,14 @@ class CustomerServiceTest {
     void deleteCustomer_Success() {
         // Arrange
         when(customerRepository.existsById(1L)).thenReturn(true);
+        when(vehicleRepository.existsByCustomerId(1L)).thenReturn(false);
         doNothing().when(customerRepository).deleteById(1L);
 
         // Act
         customerService.deleteCustomer(1L);
 
         // Assert
+        verify(vehicleRepository).existsByCustomerId(1L);
         verify(customerRepository).deleteById(1L);
     }
 
@@ -254,6 +260,19 @@ class CustomerServiceTest {
         // Act & Assert
         assertThrows(ResourceNotFoundException.class, 
                 () -> customerService.deleteCustomer(1L));
+        verify(customerRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteCustomer_WithVehicles_ThrowsException() {
+        // Arrange
+        when(customerRepository.existsById(1L)).thenReturn(true);
+        when(vehicleRepository.existsByCustomerId(1L)).thenReturn(true);
+
+        // Act & Assert
+        assertThrows(DuplicateResourceException.class,
+                () -> customerService.deleteCustomer(1L));
+        verify(vehicleRepository).existsByCustomerId(1L);
         verify(customerRepository, never()).deleteById(any());
     }
 }
