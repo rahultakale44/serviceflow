@@ -6,6 +6,7 @@ import com.serviceflow.backend.entity.Customer;
 import com.serviceflow.backend.exception.DuplicateResourceException;
 import com.serviceflow.backend.exception.ResourceNotFoundException;
 import com.serviceflow.backend.repository.CustomerRepository;
+import com.serviceflow.backend.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final VehicleRepository vehicleRepository;
 
     /**
      * Create a new customer.
@@ -140,9 +142,11 @@ public class CustomerService {
 
     /**
      * Delete a customer by ID.
+     * Prevents deletion if the customer has associated vehicles.
      *
      * @param id the customer ID
      * @throws ResourceNotFoundException if customer not found
+     * @throws DuplicateResourceException if customer has vehicles (using as conflict exception)
      */
     @Transactional
     public void deleteCustomer(Long id) {
@@ -150,6 +154,13 @@ public class CustomerService {
 
         if (!customerRepository.existsById(id)) {
             throw new ResourceNotFoundException("Customer", id);
+        }
+
+        // Check if customer has vehicles
+        if (vehicleRepository.existsByCustomerId(id)) {
+            throw new DuplicateResourceException(
+                "Cannot delete customer with id " + id + " because they have associated vehicles"
+            );
         }
 
         customerRepository.deleteById(id);
