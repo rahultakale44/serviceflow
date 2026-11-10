@@ -140,6 +140,25 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle assignment conflict exceptions (scheduling conflicts).
+     */
+    @ExceptionHandler(AssignmentConflictException.class)
+    public ResponseEntity<ErrorResponse> handleAssignmentConflictException(
+            AssignmentConflictException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
      * Handle illegal argument exceptions (validation errors).
      */
     @ExceptionHandler(IllegalArgumentException.class)

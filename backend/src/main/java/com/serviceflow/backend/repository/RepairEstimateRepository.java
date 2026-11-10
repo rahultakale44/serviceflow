@@ -31,4 +31,12 @@ public interface RepairEstimateRepository extends JpaRepository<RepairEstimate, 
     
     @Query("SELECT e FROM RepairEstimate e WHERE e.job.id = :jobId AND e.estimateStatus = :status AND e.version = (SELECT MAX(e2.version) FROM RepairEstimate e2 WHERE e2.job.id = :jobId AND e2.estimateStatus = :status)")
     Optional<RepairEstimate> findLatestByJobIdAndStatus(@Param("jobId") Long jobId, @Param("status") EstimateStatus status);
+    
+    /**
+     * Find the current (latest approved) estimate for a job.
+     * This is an alias for findLatestByJobIdAndStatus with APPROVED status.
+     */
+    default Optional<RepairEstimate> findCurrentEstimateByJobId(Long jobId) {
+        return findLatestByJobIdAndStatus(jobId, EstimateStatus.APPROVED);
+    }
 }
