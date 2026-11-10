@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/customers/**").permitAll() // Permit customer endpoints for development
                 .requestMatchers("/api/v1/vehicles/**").permitAll() // Permit vehicle endpoints for development
                 .requestMatchers("/api/v1/services/**").permitAll() // Permit service catalogue endpoints for development
+                .requestMatchers("/api/v1/bookings/**").permitAll() // Permit booking endpoints for development
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
 
