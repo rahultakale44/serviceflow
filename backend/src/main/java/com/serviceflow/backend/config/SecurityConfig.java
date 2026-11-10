@@ -11,7 +11,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * 
  * DEVELOPMENT CONFIGURATION:
  * This configuration permits unauthenticated access to customer, vehicle, service catalogue,
- * booking, and job management endpoints for development and testing purposes. This is NOT production-ready.
+ * booking, job management, and estimate endpoints for development and testing purposes.
+ * This is NOT production-ready.
  * 
  * FUTURE MILESTONE:
  * JWT-based authentication and role-based authorization will be implemented
@@ -32,7 +33,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/vehicles/**").permitAll() // Permit vehicle endpoints for development
                 .requestMatchers("/api/v1/services/**").permitAll() // Permit service catalogue endpoints for development
                 .requestMatchers("/api/v1/bookings/**").permitAll() // Permit booking endpoints for development
-                .requestMatchers("/api/v1/jobs/**").permitAll() // Permit job management endpoints for development
+                .requestMatchers("/api/v1/jobs/**").permitAll() // Permit job management and estimate endpoints for development
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
 

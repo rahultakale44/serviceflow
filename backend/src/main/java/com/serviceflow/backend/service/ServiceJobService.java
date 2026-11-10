@@ -26,6 +26,7 @@ public class ServiceJobService {
     private final ServiceBookingRepository serviceBookingRepository;
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
+    private final RepairEstimateRepository repairEstimateRepository;
 
     // Valid status transitions map
     private static final Map<JobStatus, List<JobStatus>> VALID_TRANSITIONS = new HashMap<>();
@@ -47,12 +48,14 @@ public class ServiceJobService {
                              JobInspectionRepository jobInspectionRepository,
                              ServiceBookingRepository serviceBookingRepository,
                              CustomerRepository customerRepository,
-                             VehicleRepository vehicleRepository) {
+                             VehicleRepository vehicleRepository,
+                             RepairEstimateRepository repairEstimateRepository) {
         this.serviceJobRepository = serviceJobRepository;
         this.jobInspectionRepository = jobInspectionRepository;
         this.serviceBookingRepository = serviceBookingRepository;
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
+        this.repairEstimateRepository = repairEstimateRepository;
     }
 
     @Transactional
@@ -158,6 +161,11 @@ public class ServiceJobService {
                     String.format("Invalid status transition from %s to %s", currentStatus, newStatus));
         }
 
+        // Special validation for AWAITING_APPROVAL → APPROVED transition
+        if (currentStatus == JobStatus.AWAITING_APPROVAL && newStatus == JobStatus.APPROVED) {
+            validateApprovedEstimateExists(serviceJob.getId());
+        }
+
         // Update status
         serviceJob.setJobStatus(newStatus);
         serviceJob.setUpdatedAt(LocalDateTime.now());
@@ -245,6 +253,22 @@ public class ServiceJobService {
         }
         List<JobStatus> allowedTransitions = VALID_TRANSITIONS.get(from);
         return allowedTransitions != null && allowedTransitions.contains(to);
+    }
+
+    /**
+     * Validate that an approved estimate exists for the job before allowing repair to start.
+     * 
+     * @param jobId the job ID to validate
+     * @throws IllegalStateException if no approved estimate exists
+     */
+    private void validateApprovedEstimateExists(Long jobId) {
+        boolean hasApprovedEstimate = repairEstimateRepository.findLatestByJobIdAndStatus(jobId, EstimateStatus.APPROVED)
+                .isPresent();
+
+        if (!hasApprovedEstimate) {
+            throw new IllegalStateException(
+                    "Cannot approve job for repair. An approved repair estimate is required before starting repair work.");
+        }
     }
 
     @Transactional
