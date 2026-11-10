@@ -8,7 +8,7 @@ ServiceFlow is a modern backend system for managing vehicle service operations, 
 
 **Repository**: https://github.com/rahultakale44/serviceflow  
 **Branch**: main  
-**Status**: Phase 4 Complete ✅
+**Status**: Phase 5 Complete ✅
 
 ## Technology Stack
 
@@ -315,9 +315,169 @@ Terminal States: CANCELLED, CHECKED_IN
 - `0df8acd` - feat(booking): add booking creation and retrieval APIs
 - `8733105` - test(booking): add comprehensive booking test coverage
 
+### ✅ Phase 5: Service Job/Job Card Management (Completed)
+
+Central workshop management system converting checked-in bookings into trackable job cards with complete lifecycle management.
+
+**Features:**
+- ServiceJob entity with OneToOne booking relationship
+- 10-state job status lifecycle management
+- Vehicle inspection system with category tracking
+- Unique job card number generation (JC-YYYYMMDD-00001)
+- Quality check rework flow support
+- Timestamp tracking (started, completed, delivered)
+- Job notes management (inspection + technician)
+- Vehicle service history tracking
+- Comprehensive validation and error handling
+- Full test coverage (46 tests)
+
+**Entity Relationships:**
+```
+ServiceJob
+├── id (Long, Primary Key)
+├── jobCardNumber (String, Unique, Auto-generated: JC-YYYYMMDD-00001)
+├── booking (OneToOne → ServiceBooking)
+├── customer (ManyToOne → Customer)
+├── vehicle (ManyToOne → Vehicle)
+├── jobStatus (Enum, 10 states)
+├── complaintDescription (String, Optional)
+├── inspectionNotes (String, Optional)
+├── technicianNotes (String, Optional)
+├── createdAt (LocalDateTime)
+├── updatedAt (LocalDateTime)
+├── startedAt (LocalDateTime, Set when IN_SERVICE)
+├── completedAt (LocalDateTime, Set when QUALITY_CHECK)
+├── deliveredAt (LocalDateTime, Set when DELIVERED)
+└── inspections (OneToMany → JobInspection)
+
+JobInspection (Vehicle Inspection Records)
+├── id (Long, Primary Key)
+├── job (ManyToOne → ServiceJob)
+├── inspectionCategory (Enum: ENGINE, BRAKES, TYRES, etc.)
+├── itemName (String, Specific inspection item)
+├── condition (Enum: GOOD, NEEDS_ATTENTION, REQUIRES_REPAIR)
+├── notes (String, Optional)
+└── inspectedAt (LocalDateTime)
+```
+
+**Job Status Lifecycle (10 States):**
+```
+BOOKED → CHECKED_IN → INSPECTION → ESTIMATE_PENDING → AWAITING_APPROVAL 
+       → APPROVED → IN_SERVICE → QUALITY_CHECK → READY_FOR_DELIVERY → DELIVERED
+
+Rework Path: QUALITY_CHECK → IN_SERVICE (when quality check fails)
+```
+
+**Inspection Categories:**
+- ENGINE - Engine and powertrain components
+- BRAKES - Brake system and components
+- TYRES - Tyre condition and pressure
+- BATTERY - Battery health and connections
+- ELECTRICAL - Electrical systems
+- EXTERIOR - Body and paint condition
+- INTERIOR - Interior condition and functionality
+- GENERAL - General observations
+
+**Inspection Conditions:**
+- GOOD - Component in good condition
+- NEEDS_ATTENTION - Requires monitoring
+- REQUIRES_REPAIR - Needs immediate repair
+
+**Business Rules:**
+1. Job card can only be created from bookings in CHECKED_IN status
+2. One booking can have only one job card (OneToOne relationship)
+3. Job card numbers are unique and auto-generated
+4. Status transitions are validated (invalid transitions rejected with 400)
+5. Quality check can return to in-service for rework
+6. Customer and vehicle must exist when creating job
+7. Inspection categories and conditions are predefined enums
+8. Multiple inspection records allowed per job
+9. Timestamps automatically updated based on status changes
+10. Vehicle service history accessible via job queries
+
+**Endpoints:**
+- `POST /api/v1/jobs` - Create job from booking (201 Created)
+- `GET /api/v1/jobs/{id}` - Get job by ID (200 OK)
+- `GET /api/v1/jobs/job-card/{jobCardNumber}` - Get job by job card number (200 OK)
+- `GET /api/v1/jobs/booking/{bookingId}` - Get job by booking ID (200 OK)
+- `GET /api/v1/jobs` - Get all jobs with pagination (200 OK)
+- `GET /api/v1/jobs/vehicle/{vehicleId}` - Get vehicle service history (200 OK)
+- `PATCH /api/v1/jobs/{id}/status` - Update job status (200 OK)
+- `PATCH /api/v1/jobs/{id}/notes` - Update job notes (200 OK)
+- `POST /api/v1/jobs/{id}/inspections` - Add inspection record (201 Created)
+- `GET /api/v1/jobs/{id}/inspections` - Get job inspections (200 OK)
+
+**Example Job Creation Request:**
+```json
+{
+  "bookingId": 1,
+  "complaintDescription": "Engine making unusual noise",
+  "inspectionNotes": "Customer reports knocking sound during acceleration"
+}
+```
+
+**Example Status Update Request:**
+```json
+{
+  "jobStatus": "IN_SERVICE",
+  "notes": "Started working on engine inspection"
+}
+```
+
+**Example Inspection Record Request:**
+```json
+{
+  "category": "ENGINE",
+  "itemName": "Oil Level",
+  "condition": "GOOD",
+  "notes": "Oil level normal, no leaks detected"
+}
+```
+
+**Example Job Response:**
+```json
+{
+  "id": 1,
+  "jobCardNumber": "JC-20261110-00001",
+  "bookingId": 1,
+  "customerId": 1,
+  "customerName": "John Doe",
+  "customerPhone": "1234567890",
+  "vehicleId": 1,
+  "vehicleRegistrationNumber": "ABC123",
+  "vehicleMake": "Toyota",
+  "vehicleModel": "Camry",
+  "jobStatus": "IN_SERVICE",
+  "complaintDescription": "Engine making unusual noise",
+  "inspectionNotes": "Customer reports knocking sound",
+  "technicianNotes": "Started engine diagnostics",
+  "createdAt": "2026-11-10T23:00:00",
+  "updatedAt": "2026-11-10T23:15:00",
+  "startedAt": "2026-11-10T23:15:00",
+  "completedAt": null,
+  "deliveredAt": null,
+  "inspections": [
+    {
+      "id": 1,
+      "jobId": 1,
+      "category": "ENGINE",
+      "itemName": "Oil Level",
+      "condition": "GOOD",
+      "notes": "Oil level normal",
+      "inspectedAt": "2026-11-10T23:10:00"
+    }
+  ]
+}
+```
+
+**Commits:**
+- `8263921` - feat(job): add service job entity and status lifecycle
+- `fe18b8a` - feat(job): implement job card creation and booking integration
+- `ecad2b7` - test(job): add comprehensive job card test coverage
+
 ## Test Coverage
 
-**Total Tests: 122** ✅ All Passing
+**Total Tests: 168** ✅ All Passing
 
 - **Context Tests**: 1
 - **Customer Controller Tests**: 9
@@ -328,6 +488,8 @@ Terminal States: CANCELLED, CHECKED_IN
 - **Service Item Service Tests**: 19
 - **Booking Controller Tests**: 14
 - **Booking Service Tests**: 19
+- **Job Controller Tests**: 19
+- **Job Service Tests**: 27
 
 ### Test Categories
 
@@ -394,10 +556,29 @@ Terminal States: CANCELLED, CHECKED_IN
 - Already checked-in rejection
 - HTTP status codes
 
+**Job Card Tests (46):**
+- Job creation from CHECKED_IN booking
+- Job creation validation (booking status, existence)
+- Duplicate job prevention per booking
+- Job card number uniqueness
+- All 10 status transitions
+- Quality check to in-service rework path
+- Invalid status transition rejection
+- Inspection record creation
+- Multiple inspections per job
+- Job retrieval by ID, job card number, booking ID
+- Vehicle service history
+- Pagination
+- Timestamp updates (started, completed, delivered)
+- Notes updates (inspection and technician)
+- Customer not found rejection
+- Vehicle not found rejection
+- HTTP status codes
+
 ## Build & Test Results
 
 ```
-[INFO] Tests run: 122, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 168, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -524,12 +705,14 @@ backend/
 │       │   │   ├── CustomerControllerTest.java
 │       │   │   ├── VehicleControllerTest.java
 │       │   │   ├── ServiceItemControllerTest.java
-│       │   │   └── ServiceBookingControllerTest.java
+│       │   │   ├── ServiceBookingControllerTest.java
+│       │   │   └── ServiceJobControllerTest.java
 │       │   ├── service/
 │       │   │   ├── CustomerServiceTest.java
 │       │   │   ├── VehicleServiceTest.java
 │       │   │   ├── ServiceItemServiceTest.java
-│       │   │   └── ServiceBookingServiceTest.java
+│       │   │   ├── ServiceBookingServiceTest.java
+│       │   │   └── ServiceJobServiceTest.java
 │       │   └── BackendApplicationTests.java
 │       └── resources/
 │           └── application-test.yaml
@@ -568,7 +751,7 @@ The application will start on `http://localhost:8080`
 
 ## Security Configuration
 
-**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, `/api/v1/services`, and `/api/v1/bookings` are currently open for development purposes.
+**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, `/api/v1/services`, `/api/v1/bookings`, and `/api/v1/jobs` are currently open for development purposes.
 
 ⚠️ **Note**: This is temporary development configuration. Production deployment will require proper JWT authentication and role-based authorization.
 
