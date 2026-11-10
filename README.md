@@ -8,7 +8,7 @@ ServiceFlow is a modern backend system for managing vehicle service operations, 
 
 **Repository**: https://github.com/rahultakale44/serviceflow  
 **Branch**: main  
-**Status**: Phase 2 Complete ✅
+**Status**: Phase 3 Complete ✅
 
 ## Technology Stack
 
@@ -102,15 +102,80 @@ Vehicle
 - `cb7344f` - feat(vehicle): add vehicle REST endpoints and security config
 - `5fda144` - test(vehicle): add comprehensive test coverage for vehicle management
 
+### ✅ Phase 3: Service Catalogue Management (Completed)
+
+Complete service catalogue system for managing offered services with pricing and duration.
+
+**Features:**
+- ServiceItem entity with code normalization
+- Soft delete support (deactivation)
+- Active/inactive service filtering
+- Category-based service organization
+- BigDecimal for precise price handling
+- Comprehensive validation and error handling
+- Full test coverage (32 tests)
+
+**Entity Structure:**
+```
+ServiceItem
+├── id (Long, Primary Key)
+├── serviceCode (String, Unique, Mandatory, Normalized to uppercase)
+├── name (String, Mandatory)
+├── description (String, Optional)
+├── category (String, Mandatory)
+├── basePrice (BigDecimal, Mandatory, Non-negative)
+├── estimatedDurationMinutes (Integer, Mandatory, Positive)
+├── active (Boolean, Default true)
+├── createdAt (LocalDateTime)
+└── updatedAt (LocalDateTime)
+```
+
+**Business Rules:**
+- Service codes are normalized to uppercase and trimmed
+- Duplicate service codes are rejected with 409 Conflict
+- Base price must be non-negative (zero or positive)
+- Estimated duration must be at least 1 minute
+- DELETE performs soft delete (sets active=false) to preserve history
+- Inactive services remain retrievable but not offered for new bookings
+- Active status is preserved during updates unless explicitly changed
+
+**Endpoints:**
+- `POST /api/v1/services` - Create service item (201 Created)
+- `GET /api/v1/services/{id}` - Get service by ID (200 OK)
+- `GET /api/v1/services` - Get all services with pagination (200 OK)
+- `GET /api/v1/services/active` - Get active services with pagination (200 OK)
+- `GET /api/v1/services/category/{category}` - Get services by category (200 OK)
+- `PUT /api/v1/services/{id}` - Update service (200 OK)
+- `PATCH /api/v1/services/{id}/status` - Activate/deactivate service (200 OK)
+- `DELETE /api/v1/services/{id}` - Soft delete (deactivate) service (204 No Content)
+
+**Example Service Catalogue Entries:**
+- General Vehicle Service (category: Maintenance)
+- Engine Oil Change (category: Maintenance)
+- Brake Inspection (category: Safety)
+- Brake Pad Replacement (category: Repair)
+- Tyre Rotation (category: Maintenance)
+- Wheel Alignment (category: Maintenance)
+- Battery Replacement (category: Electrical)
+- Air Filter Replacement (category: Maintenance)
+- AC Inspection (category: Comfort)
+- Vehicle Washing (category: Cleaning)
+
+**Commits:**
+- `f683351` - feat(catalogue): add service item entity and repository
+- `8e676d6` - test(catalogue): add comprehensive service catalogue tests
+
 ## Test Coverage
 
-**Total Tests: 57** ✅ All Passing
+**Total Tests: 89** ✅ All Passing
 
 - **Context Tests**: 1
 - **Customer Controller Tests**: 9
 - **Customer Service Tests**: 14
 - **Vehicle Controller Tests**: 13
 - **Vehicle Service Tests**: 20
+- **Service Item Controller Tests**: 13
+- **Service Item Service Tests**: 19
 
 ### Test Categories
 
@@ -136,44 +201,92 @@ Vehicle
 - Input validation
 - HTTP status codes
 
+**Service Catalogue Tests (32):**
+- Service creation with validation
+- Duplicate service code handling
+- Service code normalization (uppercase)
+- Default active status
+- Service retrieval by ID and not found
+- Pagination for all services
+- Active services filtering
+- Category filtering
+- Service updates
+- Update with duplicate code
+- Active status preservation during updates
+- Status updates (activate/deactivate)
+- Soft deletion (deactivation)
+- Negative price rejection
+- Zero/negative duration rejection
+
 ## Build & Test Results
 
 ```
-[INFO] Tests run: 57, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 89, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
-[INFO] Total time: 01:41 min
 ```
 
 ## API Response Format
 
-### Success Response
+### Success Response (Service Item Example)
 ```json
 {
   "id": 1,
-  "registrationNumber": "ABC123",
-  "make": "Toyota",
-  "model": "Camry",
-  "manufacturingYear": 2022,
-  "fuelType": "Petrol",
-  "vin": "1HGBH41JXMN109186",
-  "customer": {
-    "id": 1,
-    "firstName": "John",
-    "lastName": "Doe",
-    "phone": "1234567890"
-  },
-  "createdAt": "2026-11-09T18:30:00",
-  "updatedAt": "2026-11-09T18:30:00"
+  "serviceCode": "OC001",
+  "name": "Engine Oil Change",
+  "description": "Complete engine oil change with filter replacement",
+  "category": "Maintenance",
+  "basePrice": 50.00,
+  "estimatedDurationMinutes": 30,
+  "active": true,
+  "createdAt": "2026-11-09T23:00:00",
+  "updatedAt": "2026-11-09T23:00:00"
 }
 ```
 
 ### Error Response
 ```json
 {
-  "message": "Vehicle with registration number ABC123 already exists",
+  "message": "Service with code OC001 already exists",
   "statusCode": 409,
-  "timestamp": "2026-11-09T18:30:00"
+  "timestamp": "2026-11-09T23:00:00"
 }
+```
+
+### API Examples
+
+**Create a Service Item:**
+```bash
+POST /api/v1/services
+Content-Type: application/json
+
+{
+  "serviceCode": "OC001",
+  "name": "Engine Oil Change",
+  "description": "Complete engine oil change with filter replacement",
+  "category": "Maintenance",
+  "basePrice": 50.00,
+  "estimatedDurationMinutes": 30
+}
+```
+
+**Get Active Services:**
+```bash
+GET /api/v1/services/active?page=0&size=10&sortBy=name&direction=ASC
+```
+
+**Update Service Status:**
+```bash
+PATCH /api/v1/services/1/status
+Content-Type: application/json
+
+{
+  "active": false
+}
+```
+
+**Get Services by Category:**
+```bash
+GET /api/v1/services/category/Maintenance?page=0&size=20
 ```
 
 ## Project Structure
@@ -187,15 +300,19 @@ backend/
 │   │   │   │   └── SecurityConfig.java
 │   │   │   ├── controller/
 │   │   │   │   ├── CustomerController.java
-│   │   │   │   └── VehicleController.java
+│   │   │   │   ├── VehicleController.java
+│   │   │   │   └── ServiceItemController.java
 │   │   │   ├── dto/
 │   │   │   │   ├── CustomerRequestDto.java
 │   │   │   │   ├── CustomerResponseDto.java
 │   │   │   │   ├── VehicleRequestDto.java
-│   │   │   │   └── VehicleResponseDto.java
+│   │   │   │   ├── VehicleResponseDto.java
+│   │   │   │   ├── ServiceItemRequestDto.java
+│   │   │   │   └── ServiceItemResponseDto.java
 │   │   │   ├── entity/
 │   │   │   │   ├── Customer.java
-│   │   │   │   └── Vehicle.java
+│   │   │   │   ├── Vehicle.java
+│   │   │   │   └── ServiceItem.java
 │   │   │   ├── exception/
 │   │   │   │   ├── DuplicateResourceException.java
 │   │   │   │   ├── ErrorResponse.java
@@ -203,10 +320,12 @@ backend/
 │   │   │   │   └── ResourceNotFoundException.java
 │   │   │   ├── repository/
 │   │   │   │   ├── CustomerRepository.java
-│   │   │   │   └── VehicleRepository.java
+│   │   │   │   ├── VehicleRepository.java
+│   │   │   │   └── ServiceItemRepository.java
 │   │   │   ├── service/
 │   │   │   │   ├── CustomerService.java
-│   │   │   │   └── VehicleService.java
+│   │   │   │   ├── VehicleService.java
+│   │   │   │   └── ServiceItemService.java
 │   │   │   └── BackendApplication.java
 │   │   └── resources/
 │   │       └── application.yaml
@@ -214,10 +333,12 @@ backend/
 │       ├── java/com/serviceflow/backend/
 │       │   ├── controller/
 │       │   │   ├── CustomerControllerTest.java
-│       │   │   └── VehicleControllerTest.java
+│       │   │   ├── VehicleControllerTest.java
+│       │   │   └── ServiceItemControllerTest.java
 │       │   ├── service/
 │       │   │   ├── CustomerServiceTest.java
-│       │   │   └── VehicleServiceTest.java
+│       │   │   ├── VehicleServiceTest.java
+│       │   │   └── ServiceItemServiceTest.java
 │       │   └── BackendApplicationTests.java
 │       └── resources/
 │           └── application-test.yaml
@@ -256,7 +377,7 @@ The application will start on `http://localhost:8080`
 
 ## Security Configuration
 
-**Development Mode**: All API endpoints under `/api/v1/customers` and `/api/v1/vehicles` are currently open for development purposes.
+**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, and `/api/v1/services` are currently open for development purposes.
 
 ⚠️ **Note**: This is temporary development configuration. Production deployment will require proper JWT authentication and role-based authorization.
 
@@ -293,9 +414,32 @@ The application will start on `http://localhost:8080`
 - Vehicle → Customer (ManyToOne)
 - Customer → Vehicle (OneToMany)
 
+### Service Items Table
+- `id` (BIGINT, Primary Key)
+- `service_code` (VARCHAR 20, UNIQUE, NOT NULL)
+- `name` (VARCHAR 100, NOT NULL)
+- `description` (TEXT)
+- `category` (VARCHAR 50, NOT NULL)
+- `base_price` (DECIMAL 10,2, NOT NULL)
+- `estimated_duration_minutes` (INT, NOT NULL)
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**Indexes:**
+- `idx_service_code` on `service_code`
+- `idx_service_category` on `category`
+- `idx_service_active` on `active`
+
+**Constraints:**
+- `uk_service_code` unique constraint on `service_code`
+
 ## Git Commit History
 
 ```
+8e676d6 - test(catalogue): add comprehensive service catalogue tests
+f683351 - feat(catalogue): add service item entity and repository
+32a2787 - docs: add comprehensive documentation for Phase 1 and Phase 2
 5fda144 - test(vehicle): add comprehensive test coverage for vehicle management
 cb7344f - feat(vehicle): add vehicle REST endpoints and security config
 6f3e33d - feat(vehicle): implement vehicle service and business rules
@@ -311,7 +455,6 @@ eada08e - chore: initialize ServiceFlow repository
 
 ## Next Phases (Planned)
 
-- **Phase 3**: Service Catalogue Management
 - **Phase 4**: Service Appointment Scheduling
 - **Phase 5**: Service Job Management
 - **Phase 6**: Parts Inventory Management
