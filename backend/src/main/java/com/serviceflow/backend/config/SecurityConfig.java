@@ -10,8 +10,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * Security configuration for the application.
  * 
  * DEVELOPMENT CONFIGURATION:
- * This configuration permits unauthenticated access to customer, vehicle, and service catalogue
- * endpoints for development and testing purposes. This is NOT production-ready.
+ * This configuration permits unauthenticated access to customer, vehicle, service catalogue,
+ * and booking endpoints for development and testing purposes. This is NOT production-ready.
  * 
  * FUTURE MILESTONE:
  * JWT-based authentication and role-based authorization will be implemented

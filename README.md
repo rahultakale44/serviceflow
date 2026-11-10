@@ -8,7 +8,7 @@ ServiceFlow is a modern backend system for managing vehicle service operations, 
 
 **Repository**: https://github.com/rahultakale44/serviceflow  
 **Branch**: main  
-**Status**: Phase 3 Complete ✅
+**Status**: Phase 4 Complete ✅
 
 ## Technology Stack
 
@@ -165,9 +165,159 @@ ServiceItem
 - `f683351` - feat(catalogue): add service item entity and repository
 - `8e676d6` - test(catalogue): add comprehensive service catalogue tests
 
+### ✅ Phase 4: Service Booking Management (Completed)
+
+Complete booking system connecting customers, vehicles, and services with historical price preservation.
+
+**Features:**
+- ServiceBooking entity with line item snapshots
+- BookingServiceItem entity preserving historical pricing
+- Booking status lifecycle management
+- Price and duration snapshot preservation
+- Multi-service booking support
+- Duplicate service consolidation
+- Atomic booking creation with rollback
+- Customer and vehicle booking history
+- Soft cancellation preserving records
+- Full test coverage (33 tests)
+
+**Entity Relationships:**
+```
+ServiceBooking
+├── id (Long, Primary Key)
+├── bookingNumber (String, Unique, Auto-generated)
+├── customer (ManyToOne → Customer)
+├── vehicle (ManyToOne → Vehicle)
+├── bookingDateTime (LocalDateTime, Future)
+├── customerNotes (String, Optional)
+├── bookingStatus (Enum: REQUESTED, CONFIRMED, CANCELLED, CHECKED_IN)
+├── estimatedTotalPrice (BigDecimal)
+├── estimatedTotalDurationMinutes (Integer)
+├── bookingServiceItems (OneToMany → BookingServiceItem)
+├── createdAt (LocalDateTime)
+└── updatedAt (LocalDateTime)
+
+BookingServiceItem (Line Items with Historical Snapshots)
+├── id (Long, Primary Key)
+├── booking (ManyToOne → ServiceBooking)
+├── serviceItem (ManyToOne → ServiceItem)
+├── serviceCodeSnapshot (String, Preserved from catalogue)
+├── serviceNameSnapshot (String, Preserved from catalogue)
+├── unitPriceSnapshot (BigDecimal, Preserved from catalogue)
+├── estimatedDurationMinutesSnapshot (Integer, Preserved from catalogue)
+├── quantity (Integer, Positive)
+└── lineTotal (BigDecimal, Calculated)
+```
+
+**Booking Status Transitions:**
+```
+REQUESTED → CONFIRMED     (Booking confirmed)
+REQUESTED → CANCELLED     (Booking cancelled before confirmation)
+CONFIRMED → CANCELLED     (Booking cancelled after confirmation)
+CONFIRMED → CHECKED_IN    (Customer checked in)
+
+Terminal States: CANCELLED, CHECKED_IN
+```
+
+**Business Rules:**
+1. Customer must exist (404 if not found)
+2. Vehicle must exist (404 if not found)
+3. Vehicle must belong to the specified customer
+4. At least one service must be selected
+5. All selected services must exist and be active
+6. Booking date/time must be in the future
+7. Quantity must be positive (≥ 1)
+8. Duplicate service selections are consolidated
+9. Prices and durations read from database (client cannot specify)
+10. Historical snapshots preserved even if catalogue changes
+11. Status transitions validated (invalid transitions rejected with 400)
+12. DELETE performs soft cancellation (sets status=CANCELLED)
+13. Atomic creation (all-or-nothing transaction)
+14. Unique booking numbers auto-generated (format: BK-YYYYMMDD-XXXXX)
+
+**Endpoints:**
+- `POST /api/v1/bookings` - Create booking (201 Created)
+- `GET /api/v1/bookings/{id}` - Get booking by ID (200 OK)
+- `GET /api/v1/bookings` - Get all bookings with pagination (200 OK)
+- `GET /api/v1/bookings/customer/{customerId}` - Get customer bookings (200 OK)
+- `GET /api/v1/bookings/vehicle/{vehicleId}` - Get vehicle bookings (200 OK)
+- `PATCH /api/v1/bookings/{id}/status` - Update booking status (200 OK)
+- `DELETE /api/v1/bookings/{id}` - Cancel booking (204 No Content)
+
+**Example Booking Request:**
+```json
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingDateTime": "2026-11-15T10:00:00",
+  "customerNotes": "Regular maintenance service",
+  "services": [
+    {"serviceId": 1, "quantity": 1},
+    {"serviceId": 2, "quantity": 2}
+  ]
+}
+```
+
+**Example Booking Response:**
+```json
+{
+  "id": 1,
+  "bookingNumber": "BK-20261110-00001",
+  "customer": {
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "1234567890",
+    "email": "john@example.com"
+  },
+  "vehicle": {
+    "id": 1,
+    "registrationNumber": "ABC123",
+    "make": "Toyota",
+    "model": "Camry",
+    "manufacturingYear": 2022
+  },
+  "bookingDateTime": "2026-11-15T10:00:00",
+  "customerNotes": "Regular maintenance service",
+  "bookingStatus": "REQUESTED",
+  "estimatedTotalPrice": 150.00,
+  "estimatedTotalDurationMinutes": 120,
+  "services": [
+    {
+      "id": 1,
+      "serviceItemId": 1,
+      "serviceCode": "OC001",
+      "serviceName": "Oil Change",
+      "unitPrice": 50.00,
+      "estimatedDurationMinutes": 30,
+      "quantity": 1,
+      "lineTotal": 50.00
+    },
+    {
+      "id": 2,
+      "serviceItemId": 2,
+      "serviceCode": "BI001",
+      "serviceName": "Brake Inspection",
+      "unitPrice": 50.00,
+      "estimatedDurationMinutes": 45,
+      "quantity": 2,
+      "lineTotal": 100.00
+    }
+  ],
+  "createdAt": "2026-11-10T22:30:00",
+  "updatedAt": "2026-11-10T22:30:00"
+}
+```
+
+**Commits:**
+- `94fca08` - feat(booking): add booking entities and line item snapshots
+- `d073b6f` - feat(booking): implement booking repository and business rules
+- `0df8acd` - feat(booking): add booking creation and retrieval APIs
+- `8733105` - test(booking): add comprehensive booking test coverage
+
 ## Test Coverage
 
-**Total Tests: 89** ✅ All Passing
+**Total Tests: 122** ✅ All Passing
 
 - **Context Tests**: 1
 - **Customer Controller Tests**: 9
@@ -176,6 +326,8 @@ ServiceItem
 - **Vehicle Service Tests**: 20
 - **Service Item Controller Tests**: 13
 - **Service Item Service Tests**: 19
+- **Booking Controller Tests**: 14
+- **Booking Service Tests**: 19
 
 ### Test Categories
 
@@ -218,10 +370,34 @@ ServiceItem
 - Negative price rejection
 - Zero/negative duration rejection
 
+**Booking Tests (33):**
+- Successful booking creation
+- Multi-service booking
+- Customer not found rejection
+- Vehicle not found rejection
+- Vehicle ownership validation
+- Service not found rejection
+- Inactive service rejection
+- Duplicate service consolidation
+- Past booking date rejection
+- Correct price calculation
+- Correct duration calculation
+- Price snapshot preservation
+- Booking retrieval by ID
+- Customer booking history
+- Vehicle booking history
+- Pagination
+- Valid status transitions (REQUESTED→CONFIRMED, CONFIRMED→CHECKED_IN)
+- Invalid status transition rejection
+- Booking cancellation
+- Already cancelled rejection
+- Already checked-in rejection
+- HTTP status codes
+
 ## Build & Test Results
 
 ```
-[INFO] Tests run: 89, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 122, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -301,31 +477,44 @@ backend/
 │   │   │   ├── controller/
 │   │   │   │   ├── CustomerController.java
 │   │   │   │   ├── VehicleController.java
-│   │   │   │   └── ServiceItemController.java
+│   │   │   │   ├── ServiceItemController.java
+│   │   │   │   └── ServiceBookingController.java
 │   │   │   ├── dto/
 │   │   │   │   ├── CustomerRequestDto.java
 │   │   │   │   ├── CustomerResponseDto.java
 │   │   │   │   ├── VehicleRequestDto.java
 │   │   │   │   ├── VehicleResponseDto.java
 │   │   │   │   ├── ServiceItemRequestDto.java
-│   │   │   │   └── ServiceItemResponseDto.java
+│   │   │   │   ├── ServiceItemResponseDto.java
+│   │   │   │   ├── CustomerSummaryDto.java
+│   │   │   │   ├── VehicleSummaryDto.java
+│   │   │   │   ├── ServiceBookingRequestDto.java
+│   │   │   │   ├── ServiceBookingResponseDto.java
+│   │   │   │   ├── BookingServiceItemRequestDto.java
+│   │   │   │   └── BookingServiceItemResponseDto.java
 │   │   │   ├── entity/
 │   │   │   │   ├── Customer.java
 │   │   │   │   ├── Vehicle.java
-│   │   │   │   └── ServiceItem.java
+│   │   │   │   ├── ServiceItem.java
+│   │   │   │   ├── BookingStatus.java
+│   │   │   │   ├── ServiceBooking.java
+│   │   │   │   └── BookingServiceItem.java
 │   │   │   ├── exception/
 │   │   │   │   ├── DuplicateResourceException.java
 │   │   │   │   ├── ErrorResponse.java
 │   │   │   │   ├── GlobalExceptionHandler.java
-│   │   │   │   └── ResourceNotFoundException.java
+│   │   │   │   ├── ResourceNotFoundException.java
+│   │   │   │   └── InvalidStatusTransitionException.java
 │   │   │   ├── repository/
 │   │   │   │   ├── CustomerRepository.java
 │   │   │   │   ├── VehicleRepository.java
-│   │   │   │   └── ServiceItemRepository.java
+│   │   │   │   ├── ServiceItemRepository.java
+│   │   │   │   └── ServiceBookingRepository.java
 │   │   │   ├── service/
 │   │   │   │   ├── CustomerService.java
 │   │   │   │   ├── VehicleService.java
-│   │   │   │   └── ServiceItemService.java
+│   │   │   │   ├── ServiceItemService.java
+│   │   │   │   └── ServiceBookingService.java
 │   │   │   └── BackendApplication.java
 │   │   └── resources/
 │   │       └── application.yaml
@@ -334,11 +523,13 @@ backend/
 │       │   ├── controller/
 │       │   │   ├── CustomerControllerTest.java
 │       │   │   ├── VehicleControllerTest.java
-│       │   │   └── ServiceItemControllerTest.java
+│       │   │   ├── ServiceItemControllerTest.java
+│       │   │   └── ServiceBookingControllerTest.java
 │       │   ├── service/
 │       │   │   ├── CustomerServiceTest.java
 │       │   │   ├── VehicleServiceTest.java
-│       │   │   └── ServiceItemServiceTest.java
+│       │   │   ├── ServiceItemServiceTest.java
+│       │   │   └── ServiceBookingServiceTest.java
 │       │   └── BackendApplicationTests.java
 │       └── resources/
 │           └── application-test.yaml
@@ -377,7 +568,7 @@ The application will start on `http://localhost:8080`
 
 ## Security Configuration
 
-**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, and `/api/v1/services` are currently open for development purposes.
+**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, `/api/v1/services`, and `/api/v1/bookings` are currently open for development purposes.
 
 ⚠️ **Note**: This is temporary development configuration. Production deployment will require proper JWT authentication and role-based authorization.
 
@@ -434,6 +625,61 @@ The application will start on `http://localhost:8080`
 **Constraints:**
 - `uk_service_code` unique constraint on `service_code`
 
+### Service Bookings Table
+- `id` (BIGINT, Primary Key)
+- `booking_number` (VARCHAR 30, UNIQUE, NOT NULL)
+- `customer_id` (BIGINT, Foreign Key → Customer, NOT NULL)
+- `vehicle_id` (BIGINT, Foreign Key → Vehicle, NOT NULL)
+- `booking_date_time` (TIMESTAMP, NOT NULL)
+- `customer_notes` (TEXT)
+- `booking_status` (VARCHAR 20, NOT NULL, DEFAULT 'REQUESTED')
+- `estimated_total_price` (DECIMAL 10,2, NOT NULL)
+- `estimated_total_duration_minutes` (INT, NOT NULL)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**Indexes:**
+- `idx_booking_number` on `booking_number`
+- `idx_booking_customer` on `customer_id`
+- `idx_booking_vehicle` on `vehicle_id`
+- `idx_booking_status` on `booking_status`
+- `idx_booking_datetime` on `booking_date_time`
+
+**Relationships:**
+- ServiceBooking → Customer (ManyToOne)
+- ServiceBooking → Vehicle (ManyToOne)
+- ServiceBooking → BookingServiceItem (OneToMany)
+
+**Constraints:**
+- `uk_booking_number` unique constraint on `booking_number`
+- `fk_booking_customer` foreign key to customers
+- `fk_booking_vehicle` foreign key to vehicles
+
+### Booking Service Items Table (Line Items with Snapshots)
+- `id` (BIGINT, Primary Key)
+- `booking_id` (BIGINT, Foreign Key → ServiceBooking, NOT NULL)
+- `service_item_id` (BIGINT, Foreign Key → ServiceItem, NOT NULL)
+- `service_code_snapshot` (VARCHAR 20, NOT NULL)
+- `service_name_snapshot` (VARCHAR 100, NOT NULL)
+- `unit_price_snapshot` (DECIMAL 10,2, NOT NULL)
+- `estimated_duration_minutes_snapshot` (INT, NOT NULL)
+- `quantity` (INT, NOT NULL)
+- `line_total` (DECIMAL 10,2, NOT NULL)
+
+**Indexes:**
+- `idx_booking_item_booking` on `booking_id`
+- `idx_booking_item_service` on `service_item_id`
+
+**Relationships:**
+- BookingServiceItem → ServiceBooking (ManyToOne)
+- BookingServiceItem → ServiceItem (ManyToOne)
+
+**Constraints:**
+- `fk_booking_item_booking` foreign key to service_bookings
+- `fk_booking_item_service` foreign key to service_items
+
+**Note:** Historical snapshots preserve pricing and duration even if the service catalogue is updated later.
+
 ## Git Commit History
 
 ```
@@ -455,7 +701,6 @@ eada08e - chore: initialize ServiceFlow repository
 
 ## Next Phases (Planned)
 
-- **Phase 4**: Service Appointment Scheduling
 - **Phase 5**: Service Job Management
 - **Phase 6**: Parts Inventory Management
 - **Phase 7**: Invoice and Billing
