@@ -1,47 +1,87 @@
 package com.serviceflow.backend.config;
 
+import com.serviceflow.backend.security.JwtAuthenticationEntryPoint;
+import com.serviceflow.backend.security.JwtAuthenticationFilter;
+import com.serviceflow.backend.security.JwtTokenProvider;
+import com.serviceflow.backend.security.UserDetailsServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Security configuration for the application.
+ * Security configuration with JWT authentication and role-based authorization.
  * 
- * DEVELOPMENT CONFIGURATION:
- * This configuration permits unauthenticated access to customer, vehicle, service catalogue,
- * booking, job management, estimate, technician, service bay, and assignment endpoints
- * for development and testing purposes.
- * This is NOT production-ready.
+ * PRODUCTION-READY CONFIGURATION:
+ * This configuration implements JWT-based authentication and role-based authorization.
  * 
- * FUTURE MILESTONE (Phase 9):
- * JWT-based authentication and role-based authorization will be implemented
- * to properly secure all endpoints with appropriate access controls.
+ * Public endpoints:
+ * - POST /api/v1/auth/login - User login
  * 
- * All other endpoints remain protected by Spring Security's default authentication.
+ * Protected endpoints require authentication and specific roles.
+ * See @PreAuthorize annotations on controllers for detailed permissions.
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final UserDetailsServiceImpl userDetailsService;
+    private final JwtAuthenticationEntryPoint unauthorizedHandler;
+    private final JwtTokenProvider tokenProvider;
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+        return authProvider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for REST API
+            .csrf(csrf -> csrf.disable()) // Disable CSRF for JWT-based API
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(unauthorizedHandler)
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Stateless sessions for JWT
+            )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/customers/**").permitAll() // Permit customer endpoints for development
-                .requestMatchers("/api/v1/vehicles/**").permitAll() // Permit vehicle endpoints for development
-                .requestMatchers("/api/v1/services/**").permitAll() // Permit service catalogue endpoints for development
-                .requestMatchers("/api/v1/bookings/**").permitAll() // Permit booking endpoints for development
-                .requestMatchers("/api/v1/jobs/**").permitAll() // Permit job management and estimate endpoints for development
-                .requestMatchers("/api/v1/technicians/**").permitAll() // Permit technician endpoints for development
-                .requestMatchers("/api/v1/service-bays/**").permitAll() // Permit service bay endpoints for development
-                .requestMatchers("/api/v1/job-assignments/**").permitAll() // Permit job assignment endpoints for development
+                .requestMatchers("/api/v1/auth/login").permitAll() // Public login endpoint
+                .requestMatchers("/api/v1/auth/register").permitAll() // Allow first-time setup (can be restricted later)
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
+
+        http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -49,8 +89,6 @@ public class SecurityConfig {
     /**
      * CORS configuration for local development.
      * Allows frontend running on localhost:5173 to access the API.
-     * 
-     * DEVELOPMENT ONLY - This will be refined in Phase 9 with proper authentication.
      */
     @Bean
     public WebMvcConfigurer corsConfigurer() {

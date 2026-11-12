@@ -14,3 +14,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:ServiceFlowSecretKeyForJWTTokenGenerationMustBeLongEnoughForHS512Algorithm}
+  expiration: 3600000 # 1 hour in milliseconds (1000 * 60 * 60)
