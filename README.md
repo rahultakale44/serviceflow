@@ -8,7 +8,7 @@ ServiceFlow is a modern backend system for managing vehicle service operations, 
 
 **Repository**: https://github.com/rahultakale44/serviceflow  
 **Branch**: main  
-**Status**: Phase 5 Complete ✅
+**Status**: Phase 7 Complete ✅
 
 ## Technology Stack
 
@@ -475,9 +475,191 @@ Rework Path: QUALITY_CHECK → IN_SERVICE (when quality check fails)
 - `fe18b8a` - feat(job): implement job card creation and booking integration
 - `ecad2b7` - test(job): add comprehensive job card test coverage
 
+### ✅ Phase 6: Repair Estimates & Customer Approval (Completed)
+
+Complete repair estimation system with versioning, customer approval workflow, and job integration.
+
+**Features:**
+- RepairEstimate entity with line items and versioning
+- BigDecimal-based calculation service with HALF_UP rounding
+- Zero tax default (configurable, no hardcoded rates)
+- Customer approval/rejection workflow with audit trail
+- Estimate revision support with SUPERSEDED status
+- Historical preservation of all estimates
+- Job status integration requiring approved estimate before repair
+- Duplicate approval/rejection prevention
+- Full test coverage (36 tests)
+
+**Entity Relationships:**
+```
+RepairEstimate
+├── id (Long, Primary Key)
+├── estimateNumber (String, Unique, EST-YYYYMMDD-00001)
+├── job (ManyToOne → ServiceJob)
+├── version (Integer, Incremental versioning)
+├── estimateStatus (Enum: DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, SUPERSEDED)
+├── subtotal (BigDecimal)
+├── taxAmount (BigDecimal)
+├── discountAmount (BigDecimal)
+├── totalAmount (BigDecimal)
+├── notes (String, Optional)
+├── createdAt (LocalDateTime)
+├── updatedAt (LocalDateTime)
+└── items (OneToMany → RepairEstimateItem)
+
+RepairEstimateItem
+├── id (Long, Primary Key)
+├── estimate (ManyToOne → RepairEstimate)
+├── description (String)
+├── itemType (Enum: LABOUR, PART)
+├── quantity (BigDecimal)
+├── unitPrice (BigDecimal)
+└── lineTotal (BigDecimal, Calculated server-side)
+
+EstimateApproval
+├── id (Long, Primary Key)
+├── estimate (ManyToOne → RepairEstimate)
+├── decision (Enum: APPROVED, REJECTED)
+├── decisionTimestamp (LocalDateTime)
+├── rejectionReason (String, Optional)
+└── comments (String, Optional)
+```
+
+**Estimate Workflow:**
+```
+DRAFT → PENDING_APPROVAL → APPROVED/REJECTED
+                          ↓ (on revision)
+                      SUPERSEDED
+```
+
+**Business Rules:**
+1. Server-side calculation with BigDecimal precision
+2. HALF_UP rounding to 2 decimal places
+3. Tax rate explicitly provided (defaults to zero)
+4. One active estimate per job (latest version)
+5. Revisions create new DRAFT with incremented version
+6. Old estimates marked SUPERSEDED, preserved for history
+7. Duplicate approval/rejection prevented
+8. Job cannot proceed to IN_SERVICE without approved estimate
+
+**Endpoints:**
+- `POST /api/v1/jobs/{jobId}/estimates` - Create estimate (201 Created)
+- `GET /api/v1/jobs/{jobId}/estimates` - Get job estimates (200 OK)
+- `GET /api/v1/jobs/{jobId}/estimates/current` - Get current estimate (200 OK)
+- `GET /api/v1/jobs/{jobId}/estimates/{id}` - Get estimate by ID (200 OK)
+- `PUT /api/v1/jobs/{jobId}/estimates/{id}` - Update estimate (200 OK)
+- `POST /api/v1/jobs/{jobId}/estimates/{id}/submit` - Submit for approval (200 OK)
+- `POST /api/v1/jobs/{jobId}/estimates/{id}/approve` - Approve estimate (200 OK)
+- `POST /api/v1/jobs/{jobId}/estimates/{id}/reject` - Reject estimate (200 OK)
+- `POST /api/v1/jobs/{jobId}/estimates/{id}/revise` - Create revision (201 Created)
+
+**Commits:**
+- `0f6940d` - feat(estimate): add estimate entities and historical line items
+- `e6a0261` - feat(estimate): implement estimate calculation service
+- `10a4208` - feat(approval): implement customer approval and revision workflow
+- `d7a03e0` - test(estimate): add comprehensive estimate and approval test coverage
+
+### ✅ Phase 7: Technician Management & Service Bay Allocation (Completed)
+
+Complete technician management, service bay allocation, and job assignment system with scheduling conflict prevention.
+
+**Features:**
+- Technician entity with specialization and status tracking
+- Service bay management with bay types
+- Job assignment linking technician, bay, and job
+- Scheduling conflict detection and prevention
+- Assignment lifecycle (ACTIVE, COMPLETED, CANCELLED)
+- Reassignment support with history preservation
+- Active/inactive technician and bay management
+- Estimate approval validation before assignment
+- Full test coverage (42 tests)
+
+**Entity Relationships:**
+```
+Technician
+├── id (Long, Primary Key)
+├── technicianCode (String, Unique)
+├── firstName, lastName (String)
+├── email (String, Unique, Optional)
+├── phone (String, Optional)
+├── specialization (Enum: ENGINE, BRAKES, ELECTRICAL, BATTERY, GENERAL_SERVICE, TRANSMISSION, etc.)
+├── experienceYears (Integer)
+├── status (Enum: AVAILABLE, BUSY, ON_LEAVE, INACTIVE)
+├── active (Boolean, Default true)
+├── createdAt (LocalDateTime)
+└── updatedAt (LocalDateTime)
+
+ServiceBay
+├── id (Long, Primary Key)
+├── bayCode (String, Unique)
+├── bayName (String)
+├── bayType (Enum: GENERAL, ENGINE, ELECTRICAL, WASHING, INSPECTION, BODY_PAINT)
+├── locationDescription (String, Optional)
+├── active (Boolean, Default true)
+├── createdAt (LocalDateTime)
+└── updatedAt (LocalDateTime)
+
+JobAssignment
+├── id (Long, Primary Key)
+├── job (ManyToOne → ServiceJob)
+├── technician (ManyToOne → Technician)
+├── bay (ManyToOne → ServiceBay)
+├── scheduledStart (LocalDateTime)
+├── scheduledEnd (LocalDateTime)
+├── assignmentStatus (Enum: ACTIVE, COMPLETED, CANCELLED)
+├── notes (String, Optional)
+├── assignedAt (LocalDateTime)
+├── updatedAt (LocalDateTime)
+├── completedAt (LocalDateTime, Optional)
+└── cancelledAt (LocalDateTime, Optional)
+```
+
+**Business Rules:**
+1. Only active technicians can be assigned
+2. Only active service bays can be assigned
+3. Scheduled end must be after scheduled start
+4. Technician cannot have overlapping active assignments
+5. Service bay cannot have overlapping active assignments
+6. Job cannot have conflicting active assignments
+7. Assignment requires approved estimate for jobs in repair stages
+8. Reassignment cancels old assignment and creates new one
+9. Complete assignment history preserved (no deletions)
+10. Assignment lifecycle independent of job status
+
+**Endpoints:**
+
+Technicians:
+- `POST /api/v1/technicians` - Create technician (201 Created)
+- `GET /api/v1/technicians` - Get all with filtering (200 OK)
+- `GET /api/v1/technicians/{id}` - Get by ID (200 OK)
+- `PUT /api/v1/technicians/{id}` - Update technician (200 OK)
+- `PATCH /api/v1/technicians/{id}/status` - Update status (200 OK)
+
+Service Bays:
+- `POST /api/v1/service-bays` - Create bay (201 Created)
+- `GET /api/v1/service-bays` - Get all with filtering (200 OK)
+- `GET /api/v1/service-bays/{id}` - Get by ID (200 OK)
+- `PUT /api/v1/service-bays/{id}` - Update bay (200 OK)
+- `PATCH /api/v1/service-bays/{id}/status` - Update status (200 OK)
+
+Job Assignments:
+- `POST /api/v1/job-assignments` - Create assignment (201 Created)
+- `GET /api/v1/job-assignments` - Get all assignments (200 OK)
+- `GET /api/v1/job-assignments/{id}` - Get by ID (200 OK)
+- `GET /api/v1/job-assignments/job/{jobId}` - Get job history (200 OK)
+- `GET /api/v1/job-assignments/technician/{technicianId}` - Get technician assignments (200 OK)
+- `POST /api/v1/job-assignments/{id}/complete` - Complete assignment (200 OK)
+- `POST /api/v1/job-assignments/{id}/cancel` - Cancel assignment (200 OK)
+- `POST /api/v1/job-assignments/{id}/reassign` - Reassign job (200 OK)
+
+**Commits:**
+- `fe6697b` - feat(technician): add technician, service bay and assignment entities with repositories
+- `37ec6c1` - feat(assignment): implement technician, bay and assignment services with scheduling conflict prevention
+- `4f7818c` - test(assignment): add comprehensive tests for technician, service bay and job assignment
+
 ## Test Coverage
 
-**Total Tests: 168** ✅ All Passing
+**Total Tests: 246** ✅ All Passing
 
 - **Context Tests**: 1
 - **Customer Controller Tests**: 9
@@ -490,6 +672,12 @@ Rework Path: QUALITY_CHECK → IN_SERVICE (when quality check fails)
 - **Booking Service Tests**: 19
 - **Job Controller Tests**: 19
 - **Job Service Tests**: 27
+- **Estimate Calculation Tests**: 10
+- **Repair Estimate Service Tests**: 18
+- **Repair Estimate Controller Tests**: 8
+- **Technician Service Tests**: 14
+- **Service Bay Service Tests**: 10
+- **Job Assignment Service Tests**: 18
 
 ### Test Categories
 
@@ -575,10 +763,74 @@ Rework Path: QUALITY_CHECK → IN_SERVICE (when quality check fails)
 - Vehicle not found rejection
 - HTTP status codes
 
+**Repair Estimate Tests (36):**
+- Estimate creation with line items
+- BigDecimal calculation accuracy
+- HALF_UP rounding verification
+- Zero tax default
+- Tax rate application
+- Subtotal and total calculation
+- Estimate retrieval by job and ID
+- Current estimate retrieval
+- Estimate updates
+- Submit for approval
+- Customer approval workflow
+- Customer rejection with reason
+- Duplicate approval prevention
+- Estimate revision creation
+- SUPERSEDED status on revision
+- Version increment validation
+- Historical estimate preservation
+- Job integration validation
+- Approved estimate requirement
+
+**Technician Tests (14):**
+- Technician creation with specialization
+- Duplicate code validation
+- Duplicate email validation
+- Technician retrieval by ID
+- Pagination and filtering
+- Filter by status
+- Filter by specialization
+- Active technicians filtering
+- Technician updates
+- Status updates
+- Active/inactive management
+
+**Service Bay Tests (10):**
+- Bay creation with type
+- Duplicate code validation
+- Bay retrieval by ID
+- Pagination and filtering
+- Filter by bay type
+- Active bays filtering
+- Bay updates
+- Status updates
+
+**Job Assignment Tests (18):**
+- Successful assignment creation
+- Invalid schedule validation
+- Job not found rejection
+- Technician not found rejection
+- Inactive technician rejection
+- Bay not found rejection
+- Inactive bay rejection
+- Technician scheduling conflict
+- Bay scheduling conflict
+- Job scheduling conflict
+- Assignment retrieval
+- Assignment history by job
+- Assignment history by technician
+- Complete assignment
+- Cancel assignment
+- Reassignment workflow
+- Estimate approval validation
+- Assignment status validation
+
 ## Build & Test Results
 
 ```
-[INFO] Tests run: 168, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 246, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -751,9 +1003,9 @@ The application will start on `http://localhost:8080`
 
 ## Security Configuration
 
-**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, `/api/v1/services`, `/api/v1/bookings`, and `/api/v1/jobs` are currently open for development purposes.
+**Development Mode**: All API endpoints under `/api/v1/customers`, `/api/v1/vehicles`, `/api/v1/services`, `/api/v1/bookings`, `/api/v1/jobs`, `/api/v1/technicians`, `/api/v1/service-bays`, and `/api/v1/job-assignments` are currently open for development purposes.
 
-⚠️ **Note**: This is temporary development configuration. Production deployment will require proper JWT authentication and role-based authorization.
+⚠️ **Note**: This is temporary development configuration. Phase 9 will implement proper JWT authentication and role-based authorization (RBAC) for production deployment.
 
 ## Database Schema
 
@@ -884,12 +1136,15 @@ eada08e - chore: initialize ServiceFlow repository
 
 ## Next Phases (Planned)
 
-- **Phase 5**: Service Job Management
-- **Phase 6**: Parts Inventory Management
-- **Phase 7**: Invoice and Billing
-- **Phase 8**: Reporting and Analytics
-- **Phase 9**: Notification System
-- **Phase 10**: Final Integration and Deployment
+- **Phase 8**: React + TypeScript Frontend
+- **Phase 9**: Frontend Integration, JWT Authentication and RBAC
+- **Phase 10**: Docker, CI/CD, Deployment Preparation and Final Testing
+
+**Future Enhancements:**
+- Parts Inventory Management
+- Advanced Reporting and Analytics
+- Notification System
+- Mobile Application
 
 ## Contributing
 
