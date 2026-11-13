@@ -1,10 +1,13 @@
+# Test configuration with safe defaults for automated testing
+# These values are ONLY used during tests and never in production
+
 spring:
   datasource:
     url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
     username: sa
     password:
-    driver-class-name: org.h2.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -12,7 +15,15 @@ spring:
     properties:
       hibernate:
         format_sql: false
-  
-  h2:
-    console:
-      enabled: false
+
+jwt:
+  secret: TestSecretKeyForJWTTokenGenerationInTestEnvironmentOnlyMustBe64CharsMin
+  expiration: 3600000
+
+app:
+  admin:
+    username: testadmin
+    email: testadmin@test.com
+    password: TestAdmin@123
+    firstName: Test
+    lastName: Admin

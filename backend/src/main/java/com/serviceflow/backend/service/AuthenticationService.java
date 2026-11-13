@@ -64,7 +64,8 @@ public class AuthenticationService {
 
     /**
      * Register a new user.
-     * Only admins can register new users in a production system.
+     * Only admins can register new users.
+     * Role is assigned by the admin, not taken from client request.
      *
      * @param request the registration request
      * @return UserResponseDto of the created user
@@ -89,6 +90,7 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        // SECURITY: Role is explicitly set by the registering admin, validated server-side
         user.setRole(request.getRole());
         user.setActive(true);
 

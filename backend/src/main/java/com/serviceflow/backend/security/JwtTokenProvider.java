@@ -3,6 +3,7 @@ package com.serviceflow.backend.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,17 +19,41 @@ import java.util.Date;
  * 
  * Generates tokens with username, role, and userId claims.
  * Validates token signature and expiration.
+ * 
+ * SECURITY: Validates JWT secret strength at startup.
  */
 @Component
 public class JwtTokenProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
+    private static final int MINIMUM_SECRET_LENGTH = 64; // 512 bits minimum for HS512
 
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration; // in milliseconds
+
+    /**
+     * Validate JWT secret at startup.
+     * Ensures the secret is strong enough for secure token generation.
+     */
+    @PostConstruct
+    public void validateSecret() {
+        if (jwtSecret == null || jwtSecret.length() < MINIMUM_SECRET_LENGTH) {
+            logger.error("========================================");
+            logger.error("FATAL: JWT secret is too weak!");
+            logger.error("Minimum length: {} characters", MINIMUM_SECRET_LENGTH);
+            logger.error("Current length: {}", jwtSecret != null ? jwtSecret.length() : 0);
+            logger.error("Set environment variable: JWT_SECRET");
+            logger.error("Use a strong random string (64+ characters)");
+            logger.error("========================================");
+            throw new IllegalStateException(
+                String.format("JWT secret must be at least %d characters long", MINIMUM_SECRET_LENGTH)
+            );
+        }
+        logger.info("JWT secret validated successfully");
+    }
 
     /**
      * Generate JWT token from authentication.

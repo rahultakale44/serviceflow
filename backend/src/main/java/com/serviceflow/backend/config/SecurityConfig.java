@@ -76,7 +76,6 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/login").permitAll() // Public login endpoint
-                .requestMatchers("/api/v1/auth/register").permitAll() // Allow first-time setup (can be restricted later)
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
 

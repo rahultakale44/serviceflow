@@ -17,6 +17,18 @@ spring:
 
 
 # JWT Configuration
+# SECURITY: JWT_SECRET environment variable is REQUIRED
+# Generate a strong random string (64+ characters) for production
 jwt:
-  secret: ${JWT_SECRET:ServiceFlowSecretKeyForJWTTokenGenerationMustBeLongEnoughForHS512Algorithm}
+  secret: ${JWT_SECRET}
   expiration: 3600000 # 1 hour in milliseconds (1000 * 60 * 60)
+
+# Admin User Configuration
+# SECURITY: APP_ADMIN_PASSWORD environment variable is REQUIRED for first startup
+app:
+  admin:
+    username: ${APP_ADMIN_USERNAME:admin}
+    email: ${APP_ADMIN_EMAIL:admin@serviceflow.com}
+    password: ${APP_ADMIN_PASSWORD}
+    firstName: ${APP_ADMIN_FIRSTNAME:System}
+    lastName: ${APP_ADMIN_LASTNAME:Administrator}
