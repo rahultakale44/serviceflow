@@ -11,6 +11,41 @@ export interface PagedResponse<T> {
   number: number;
 }
 
+// Authentication Types
+export type UserRole = 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'CUSTOMER_SERVICE';
+
+export interface UserResponse {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  active: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  tokenType: string;
+  user: UserResponse;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}
+
 // Customer Types
 export interface Customer {
   id: number;

@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
 import Layout from './layouts/Layout';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import CustomerForm from './pages/CustomerForm';
@@ -23,63 +26,79 @@ import AssignmentForm from './pages/AssignmentForm';
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          
-          <Route path="customers">
-            <Route index element={<Customers />} />
-            <Route path="new" element={<CustomerForm />} />
-            <Route path=":id/edit" element={<CustomerForm />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes — all wrapped with PrivateRoute via Layout */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+
+            <Route path="customers">
+              <Route index element={<Customers />} />
+              <Route path="new" element={<CustomerForm />} />
+              <Route path=":id/edit" element={<CustomerForm />} />
+            </Route>
+
+            <Route path="vehicles">
+              <Route index element={<Vehicles />} />
+              <Route path="new" element={<VehicleForm />} />
+              <Route path=":id/edit" element={<VehicleForm />} />
+            </Route>
+
+            <Route path="services">
+              <Route index element={<Services />} />
+              <Route path="new" element={<ServiceForm />} />
+              <Route path=":id/edit" element={<ServiceForm />} />
+            </Route>
+
+            <Route path="bookings">
+              <Route index element={<Bookings />} />
+              <Route path="new" element={<BookingForm />} />
+            </Route>
+
+            <Route path="jobs">
+              <Route index element={<Jobs />} />
+              <Route path=":id" element={<JobDetails />} />
+            </Route>
+
+            <Route path="jobs/:jobId/estimates">
+              <Route index element={<Estimates />} />
+              <Route path="new" element={<EstimateForm />} />
+              <Route path=":id/edit" element={<EstimateForm />} />
+            </Route>
+
+            <Route path="technicians">
+              <Route index element={<Technicians />} />
+              <Route path="new" element={<TechnicianForm />} />
+              <Route path=":id/edit" element={<TechnicianForm />} />
+            </Route>
+
+            <Route path="service-bays">
+              <Route index element={<ServiceBays />} />
+              <Route path="new" element={<ServiceBayForm />} />
+              <Route path=":id/edit" element={<ServiceBayForm />} />
+            </Route>
+
+            <Route path="assignments">
+              <Route index element={<Assignments />} />
+              <Route path="new" element={<AssignmentForm />} />
+            </Route>
           </Route>
-          
-          <Route path="vehicles">
-            <Route index element={<Vehicles />} />
-            <Route path="new" element={<VehicleForm />} />
-            <Route path=":id/edit" element={<VehicleForm />} />
-          </Route>
-          
-          <Route path="services">
-            <Route index element={<Services />} />
-            <Route path="new" element={<ServiceForm />} />
-            <Route path=":id/edit" element={<ServiceForm />} />
-          </Route>
-          
-          <Route path="bookings">
-            <Route index element={<Bookings />} />
-            <Route path="new" element={<BookingForm />} />
-          </Route>
-          
-          <Route path="jobs">
-            <Route index element={<Jobs />} />
-            <Route path=":id" element={<JobDetails />} />
-          </Route>
-          
-          <Route path="jobs/:jobId/estimates">
-            <Route index element={<Estimates />} />
-            <Route path="new" element={<EstimateForm />} />
-            <Route path=":id/edit" element={<EstimateForm />} />
-          </Route>
-          
-          <Route path="technicians">
-            <Route index element={<Technicians />} />
-            <Route path="new" element={<TechnicianForm />} />
-            <Route path=":id/edit" element={<TechnicianForm />} />
-          </Route>
-          
-          <Route path="service-bays">
-            <Route index element={<ServiceBays />} />
-            <Route path="new" element={<ServiceBayForm />} />
-            <Route path=":id/edit" element={<ServiceBayForm />} />
-          </Route>
-          
-          <Route path="assignments">
-            <Route index element={<Assignments />} />
-            <Route path="new" element={<AssignmentForm />} />
-          </Route>
-        </Route>
-      </Routes>
+
+          {/* Fallback: redirect unknown paths to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

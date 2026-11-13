@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -7,13 +7,15 @@ import {
   Wrench,
   Calendar,
   ClipboardList,
-  FileText,
   UserCog,
   Building2,
   CalendarCheck,
   Menu,
   X,
+  LogOut,
+  User,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -27,12 +29,35 @@ const navItems = [
   { path: '/assignments', icon: CalendarCheck, label: 'Assignments' },
 ];
 
+const getRoleBadgeColor = (role: string) => {
+  switch (role) {
+    case 'ADMIN':
+      return 'bg-red-500';
+    case 'MANAGER':
+      return 'bg-blue-500';
+    case 'TECHNICIAN':
+      return 'bg-green-500';
+    case 'CUSTOMER_SERVICE':
+      return 'bg-yellow-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -97,11 +122,38 @@ export default function Layout() {
             })}
           </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-sidebar-light text-sm text-gray-400">
-            <p>ServiceFlow v1.0</p>
-            <p className="text-xs mt-1">© 2026 All rights reserved</p>
-          </div>
+          {/* User Info Footer */}
+          {user && (
+            <div className="p-4 border-t border-sidebar-light">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs px-2 py-1 rounded ${getRoleBadgeColor(
+                    user.role
+                  )} text-white font-medium`}
+                >
+                  {user.role}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -122,11 +174,45 @@ export default function Layout() {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              <p className="font-medium">Development Mode</p>
-              <p className="text-xs text-gray-500">No authentication</p>
-            </div>
+          {/* Desktop user menu */}
+          <div className="hidden lg:flex items-center space-x-4">
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user.firstName} {user.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500">{user.role}</p>
+                  </div>
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                </button>
+
+                {/* Dropdown menu */}
+                {userMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-20 border border-gray-200">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </header>
 

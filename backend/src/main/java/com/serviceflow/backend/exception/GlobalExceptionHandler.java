@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +21,46 @@ import java.util.stream.Collectors;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Handle Spring Security authentication failures (bad credentials, locked accounts, etc.).
+     * Must return 401, not 500.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(
+            AuthenticationException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                "Unauthorized",
+                "Authentication failed",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    /**
+     * Handle Spring Security access denied (@PreAuthorize failures).
+     * Must return 403, not 500.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.FORBIDDEN.value(),
+                "Forbidden",
+                "Access denied: insufficient permissions",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
 
     /**
      * Handle validation errors from @Valid annotations.
@@ -89,8 +131,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle database constraint violations (e.g., unique constraint on phone/email).
-     * This catches database-level uniqueness violations that weren't checked in service layer.
+     * Handle database constraint violations.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
@@ -100,7 +141,6 @@ public class GlobalExceptionHandler {
         String message = "Data integrity violation";
         String exceptionMessage = ex.getMessage();
 
-        // Provide user-friendly messages for common constraint violations
         if (exceptionMessage != null) {
             if (exceptionMessage.contains("uk_customer_phone")) {
                 message = "Phone number already exists";
@@ -121,7 +161,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle invalid booking status transition exceptions.
+     * Handle invalid status transition exceptions.
      */
     @ExceptionHandler(InvalidStatusTransitionException.class)
     public ResponseEntity<ErrorResponse> handleInvalidStatusTransitionException(
@@ -159,7 +199,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle illegal argument exceptions (validation errors).
+     * Handle illegal argument exceptions.
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(

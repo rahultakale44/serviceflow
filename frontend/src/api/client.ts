@@ -12,16 +12,43 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
+// Flag to prevent redirect loops
+let isRedirecting = false;
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ErrorResponse>) => {
     if (error.response) {
-      // Server responded with error
+      const status = error.response.status;
+      
+      // Handle 401 Unauthorized - token expired or invalid
+      if (status === 401 && !isRedirecting) {
+        isRedirecting = true;
+        
+        // Clear stored auth data
+        localStorage.removeItem('serviceflow_token');
+        localStorage.removeItem('serviceflow_user');
+        delete apiClient.defaults.headers.common['Authorization'];
+        
+        // Redirect to login if not already there
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        
+        setTimeout(() => {
+          isRedirecting = false;
+        }, 1000);
+      }
+      
+      // Handle 403 Forbidden - insufficient permissions
+      if (status === 403) {
+        console.error('Access denied: Insufficient permissions');
+      }
+      
       const errorData = error.response.data;
       console.error('API Error:', errorData);
       
-      // You can add global error handling here (e.g., show toast notifications)
       return Promise.reject(errorData);
     } else if (error.request) {
       // Request made but no response
